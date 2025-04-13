@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'admin_login.dart';
 import 'login.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 
 class HomePage extends StatelessWidget {
@@ -23,7 +25,7 @@ class HomePage extends StatelessWidget {
               const Text(
                 'Welcome to Jobvarse BD',
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.black
                 ),
@@ -32,12 +34,12 @@ class HomePage extends StatelessWidget {
               const Text(
                 'Discover. Apply. Succeed',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                     color: Colors.black
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -81,10 +83,52 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Email: support@jobvarse.com\nPhone: +8801234567890\nWebsite: www.jobvarse_BD.com',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.email),
+                    label: const Text('Email: support@jobvarse.com'),
+                    onPressed: () async {
+                      final Uri emailUri = Uri(
+                        scheme: 'mailto',
+                        path: 'support@jobvarse.com',
+                        query: 'subject=Support Request&body=Hello Jobvarse Team,',
+                      );
+                      if (await canLaunchUrl(emailUri)) {
+                        await launchUrl(emailUri);
+                      } else {
+                        throw 'Could not launch email app';
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.call),
+                    label: const Text('Call: +8801234567890'),
+                    onPressed: () async {
+                      final Uri phoneUri = Uri(scheme: 'tel', path: '+8801234567890');
+                      if (await canLaunchUrl(phoneUri)) {
+                        await launchUrl(phoneUri);
+                      } else {
+                        throw 'Could not launch dialer';
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.language),
+                    label: const Text('Website: jobvarse_BD.com'),
+                    onPressed: () async {
+                      final Uri websiteUri = Uri.parse('https://www.jobvarse_BD.com');
+                      if (await canLaunchUrl(websiteUri)) {
+                        await launchUrl(websiteUri);
+                      } else {
+                        throw 'Could not launch website';
+                      }
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
             ],
