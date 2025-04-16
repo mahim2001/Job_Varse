@@ -1,7 +1,7 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:jobvarse_bd/cv_page.dart';
 import 'home.dart';
 import 'login.dart';
 import 'profile.dart';
@@ -88,9 +88,13 @@ class _AppDrawerState extends State<AppDrawer> {
               ListTile(
                 leading: const Icon(Icons.fact_check_outlined),
                 title: const Text("Your CV"),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
-                  widget.onItemTapped(2);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CVPage()),
+                  );
+                  setState(() {}); // Refresh drawer after profile update
                 },
               ),
               ListTile(
