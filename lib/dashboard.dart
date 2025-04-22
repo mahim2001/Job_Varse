@@ -92,19 +92,57 @@ class _DashboardPageState extends State<DashboardPage> {
         title: const Text("Dashboard"),
         backgroundColor: Colors.blue,
         centerTitle: true,
-          actions: [
-            IconButton(
-              iconSize: 35,
-              icon: const Icon(Icons.notifications),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const NotificationPage(userId: '',)),
-                );
-                },
-            ),
+        actions: [
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(FirebaseAuth.instance.currentUser?.uid)
+                .collection('notifications')
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final hasUnread = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    iconSize: 35,
+                    icon: const Icon(Icons.notifications, color: Colors.black,),
+                    onPressed: () {
+                      final userId = FirebaseAuth.instance.currentUser?.uid;
+                      if (userId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NotificationPage(userId: userId),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("You must be logged in to view notifications")),
+                        );
+                      }
+                    },
+                  ),
+                  if (hasUnread)
+                    Positioned(
+                      right: 15,
+                      top: 15,
+                      child: Container(
+                        width: 15,
+                        height: 15,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
         ],
+
       ),
       drawer: AppDrawer(onItemTapped: _onDrawerItemTapped),
       body: SingleChildScrollView(

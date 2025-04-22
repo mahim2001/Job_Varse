@@ -9,6 +9,7 @@ class AdminViewApplicantsPage extends StatelessWidget {
     final jobSnapshot = await FirebaseFirestore.instance.collection('jobs').doc(jobId).get();
     final applicantIds = List<String>.from(jobSnapshot['applicants']);
     final shortlistedIds = List<String>.from(jobSnapshot['shortlisted']);
+    final jobTitle = jobSnapshot['title'];
 
     List<Map<String, dynamic>> applicants = [];
 
@@ -17,43 +18,42 @@ class AdminViewApplicantsPage extends StatelessWidget {
       final data = userDoc.data()!;
       data['uid'] = uid;
       data['shortlisted'] = shortlistedIds.contains(uid);
+      data['jobTitle'] = jobTitle;
       applicants.add(data);
     }
 
     return applicants;
   }
 
-  Future<void> shortlistUser(String jobId, String userId, String jobTitle) async {
+  Future<void> _shortlistAndNotify(String jobId, String userId, String jobTitle) async {
     final jobRef = FirebaseFirestore.instance.collection('jobs').doc(jobId);
-    final notificationRef = FirebaseFirestore.instance.collection('users').doc(userId).collection('notifications').doc();
+    final notificationRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .doc();
 
+    // Update job shortlist
     await jobRef.update({
       'shortlisted': FieldValue.arrayUnion([userId])
     });
 
+    // Send in-app notification
     await notificationRef.set({
       'title': 'You have been shortlisted!',
-      'message': 'Congratulations! You have been shortlisted for the job: $jobTitle',
+      'message': '🎉 Congratulations! You’ve been shortlisted for the job: $jobTitle',
       'jobId': jobId,
       'isRead': false,
       'timestamp': Timestamp.now(),
     });
 
-    // Send email (see step 3)
-  }
-
-
-  Future<void> _shortlistApplicant(String jobId, String userId) async {
-    final jobRef = FirebaseFirestore.instance.collection('jobs').doc(jobId);
-    await jobRef.update({
-      'shortlisted': FieldValue.arrayUnion([userId])
-    });
+    // TODO: Optionally trigger email notification via backend or Firebase Function
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Applicants")),
+      appBar: AppBar(title: const Text("Applicants"),centerTitle: true,),
       body: FutureBuilder(
         future: _fetchApplicants(jobId),
         builder: (context, snapshot) {
@@ -86,13 +86,16 @@ class AdminViewApplicantsPage extends StatelessWidget {
                       ? const Chip(label: Text("Shortlisted"))
                       : ElevatedButton(
                     onPressed: () async {
-                      await _shortlistApplicant(jobId, applicant['uid']);
+                      await _shortlistAndNotify(
+                        jobId,
+                        applicant['uid'],
+                        applicant['jobTitle'],
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Applicant shortlisted!")),
                       );
-                      // Force refresh
-                      Navigator.pop(context);
-                      Navigator.push(
+                      // Refresh the page by rebuilding
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) => AdminViewApplicantsPage(jobId: jobId),
@@ -102,7 +105,6 @@ class AdminViewApplicantsPage extends StatelessWidget {
                     child: const Text("Shortlist"),
                   ),
                   onTap: () {
-                    // Optional: Show full profile or download CV
                   },
                 ),
               );

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -22,20 +21,20 @@ class _NotificationPageState extends State<NotificationPage> {
         .get();
 
     for (var doc in query.docs) {
-      doc.reference.update({'isRead': true});
+      await doc.reference.update({'isRead': true});
     }
   }
 
   @override
   void initState() {
     super.initState();
-    markAllAsRead(); // Mark as read on opening
+    markAllAsRead();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Notifications")),
+      appBar: AppBar(title: const Text("Notifications"),centerTitle: true,),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('users')
@@ -49,7 +48,7 @@ class _NotificationPageState extends State<NotificationPage> {
           final notifications = snapshot.data!.docs;
 
           if (notifications.isEmpty) {
-            return const Center(child: Text("No notifications"));
+            return const Center(child: Text("No notifications yet."));
           }
 
           return ListView.builder(
@@ -58,14 +57,27 @@ class _NotificationPageState extends State<NotificationPage> {
               final data = notifications[index].data() as Map<String, dynamic>;
               final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
               final isRead = data['isRead'] ?? false;
+              final message = data['message'] ?? 'You have a new notification.';
 
-              return ListTile(
-                leading: Icon(Icons.notifications, color: isRead ? Colors.grey : Colors.blue),
-                title: Text(data['message'] ?? ''),
-                subtitle: timestamp != null
-                    ? Text('${timestamp.toLocal()}'.split('.')[0])
-                    : null,
-                tileColor: isRead ? Colors.white : Colors.blue.shade50,
+              return Card(
+                elevation: 3,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.check_circle,
+                    color: isRead ? Colors.grey : Colors.green,
+                  ),
+                  title: Text(
+                    message,
+                    style: TextStyle(
+                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: timestamp != null
+                      ? Text('${timestamp.toLocal()}'.split('.')[0])
+                      : null,
+                  tileColor: isRead ? Colors.white : Colors.green.shade50,
+                ),
               );
             },
           );

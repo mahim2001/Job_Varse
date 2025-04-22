@@ -47,8 +47,15 @@ class JobDetailsPage extends StatelessWidget {
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('jobs').doc(jobId).get(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final job = snapshot.data!;
+          final user = FirebaseAuth.instance.currentUser!;
+          final List<dynamic> applicants = job['applicants'] ?? [];
+          final bool alreadyApplied = applicants.contains(user.uid);
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -70,7 +77,17 @@ class JobDetailsPage extends StatelessWidget {
                 Text(job['requirements']),
                 const SizedBox(height: 30),
                 Center(
-                  child: ElevatedButton(
+                  child: alreadyApplied
+                      ? ElevatedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Already Applied'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                      : ElevatedButton(
                     onPressed: () => _applyForJob(context, jobId),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                     child: const Text('Apply', style: TextStyle(color: Colors.white)),

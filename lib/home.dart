@@ -8,6 +8,37 @@ import 'package:url_launcher/url_launcher.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
+  Future<void> _launchEmail() async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'support@jobvarse.com',
+      query: 'subject=Support Request&body=Hello Jobvarse Team,',
+    );
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else {
+      throw 'Could not launch email app';
+    }
+  }
+
+  Future<void> _launchPhone() async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: '+8801234567890');
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      throw 'Could not launch dialer';
+    }
+  }
+
+  Future<void> _launchWebsite() async {
+    final Uri websiteUri = Uri.parse('https://www.jobvarsebd.com');
+    if (await canLaunchUrl(websiteUri)) {
+      await launchUrl(websiteUri);
+    } else {
+      throw 'Could not launch website';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,47 +117,22 @@ class HomePage extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.email),
+                  TextButton.icon(
+                    icon: const Icon(Icons.email, color: Colors.blue),
                     label: const Text('Email: support@jobvarse.com'),
-                    onPressed: () async {
-                      final Uri emailUri = Uri(
-                        scheme: 'mailto',
-                        path: 'support@jobvarse.com',
-                        query: 'subject=Support Request&body=Hello Jobvarse Team,',
-                      );
-                      if (await canLaunchUrl(emailUri)) {
-                        await launchUrl(emailUri);
-                      } else {
-                        throw 'Could not launch email app';
-                      }
-                    },
+                    onPressed: _launchEmail,
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.call),
+                  const SizedBox(height: 5),
+                  TextButton.icon(
+                    icon: const Icon(Icons.call, color: Colors.green),
                     label: const Text('Call: +8801234567890'),
-                    onPressed: () async {
-                      final Uri phoneUri = Uri(scheme: 'tel', path: '+8801234567890');
-                      if (await canLaunchUrl(phoneUri)) {
-                        await launchUrl(phoneUri);
-                      } else {
-                        throw 'Could not launch dialer';
-                      }
-                    },
+                    onPressed: _launchPhone,
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.language),
-                    label: const Text('Website: jobvarse_BD.com'),
-                    onPressed: () async {
-                      final Uri websiteUri = Uri.parse('https://www.jobvarse_BD.com');
-                      if (await canLaunchUrl(websiteUri)) {
-                        await launchUrl(websiteUri);
-                      } else {
-                        throw 'Could not launch website';
-                      }
-                    },
+                  const SizedBox(height: 5),
+                  TextButton.icon(
+                    icon: const Icon(Icons.language, color: Colors.orange),
+                    label: const Text('Website: jobvarsebd.com'),
+                    onPressed: _launchWebsite,
                   ),
                 ],
               ),
