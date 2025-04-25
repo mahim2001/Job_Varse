@@ -27,6 +27,7 @@ class _GenerateCVPageState extends State<GenerateCVPage> {
     }
   }
 
+
   Widget buildTextField(String label, String key, {int maxLines = 1}) {
     return TextFormField(
       decoration: InputDecoration(labelText: label),

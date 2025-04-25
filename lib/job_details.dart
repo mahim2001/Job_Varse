@@ -80,8 +80,10 @@ class JobDetailsPage extends StatelessWidget {
                   child: alreadyApplied
                       ? ElevatedButton.icon(
                     onPressed: null,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Already Applied'),
+                    icon: const Icon(Icons.check,color: Colors.black,),
+                    label: const Text('Already Applied',
+                      style: TextStyle(fontSize: 16, color: Colors.black),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
