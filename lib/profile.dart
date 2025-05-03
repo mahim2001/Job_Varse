@@ -43,11 +43,20 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     try {
       String? imageUrl;
       if (_profileImage != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref('profile_images/${user.uid}.jpg');
-        await storageRef.putFile(_profileImage!);
-        imageUrl = await storageRef.getDownloadURL();
+        try {
+          final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final storageRef = FirebaseStorage.instance.ref().child('profile_images/$fileName');
+
+          final uploadTask = await storageRef.putFile(_profileImage!);
+          imageUrl = await storageRef.getDownloadURL();
+        } catch (e) {
+          imageUrl = '';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Image upload failed: $e")),
+          );
+        }
       }
+
 
       final profileData = {
         'name': nameController.text,
@@ -62,21 +71,24 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         'verifiedEmail': user.emailVerified,
         'uid': user.uid,
       };
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .set(profileData);
 
+
+
       if (!user.emailVerified) {
         await user.sendEmailVerification();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Verification email sent!'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verification email sent!'),
+          ),
+        );
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile created successfully!')),
+        const SnackBar(content: Text('Profile Updated successfully!')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,8 +120,8 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      appBar: AppBar(title: const Text("Profile"),
+      appBar: AppBar(
+        title: const Text("Profile"),
         centerTitle: true,
       ),
       body: Padding(
@@ -151,13 +163,15 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                 onPressed: _isLoading ? null : _submitProfile,
                 child: _isLoading
                     ? const CircularProgressIndicator()
-                    : const Text("Save Profile",
-                  style: TextStyle(color: Colors.white),),
+                    : const Text(
+                  "Save Profile",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
         ),
-       ),
+      ),
     );
   }
 
@@ -192,9 +206,8 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           labelText: "Gender",
           border: OutlineInputBorder(),
         ),
-        validator: (value) => value == null || value.isEmpty
-            ? 'Select your gender'
-            : null,
+        validator: (value) =>
+        value == null || value.isEmpty ? 'Select your gender' : null,
       ),
     );
   }

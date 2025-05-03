@@ -5,7 +5,6 @@ import 'package:jobvarse_bd/cv_page.dart';
 import 'package:jobvarse_bd/setting.dart';
 import 'home.dart';
 import 'login.dart';
-import 'profile.dart';
 
 class AppDrawer extends StatefulWidget {
   final Function(int) onItemTapped;
@@ -21,7 +20,8 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Future<Map<String, dynamic>?> fetchProfile() async {
     if (user == null) return null;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+    final doc =
+    await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     return doc.data();
   }
 
@@ -30,7 +30,6 @@ class _AppDrawerState extends State<AppDrawer> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Logged out")),
     );
-
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -55,12 +54,15 @@ class _AppDrawerState extends State<AppDrawer> {
                 accountEmail: Text(profile?['email'] ?? 'Email not set'),
                 currentAccountPicture: CircleAvatar(
                   backgroundColor: Colors.white,
-                  backgroundImage: profile?['imageUrl'] != null && profile!['imageUrl'].toString().isNotEmpty
+                  backgroundImage: profile?['imageUrl'] != null &&
+                      profile!['imageUrl'].toString().isNotEmpty
                       ? NetworkImage(profile['imageUrl'])
                       : null,
-                  child: profile?['imageUrl'] == null || profile!['imageUrl'].toString().isEmpty
+                  child: profile?['imageUrl'] == null ||
+                      profile!['imageUrl'].toString().isEmpty
                       ? const Icon(Icons.person, size: 50, color: Colors.blue)
                       : null,
+
                 ),
               ),
               ListTile(
@@ -83,7 +85,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     context,
                     MaterialPageRoute(builder: (context) => const CVPage()),
                   );
-                  setState(() {}); // Refresh drawer after profile update
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -95,7 +97,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     context,
                     MaterialPageRoute(builder: (context) => const SettingsPage()),
                   );
-                  setState(() {}); // Refresh drawer after profile update
+                  setState(() {});
                 },
               ),
               const Divider(),
