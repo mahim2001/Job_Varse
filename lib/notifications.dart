@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'job_details.dart'; // Make sure this import points to your JobDetailsPage file
 
 class NotificationPage extends StatefulWidget {
   final String userId;
@@ -31,10 +32,23 @@ class _NotificationPageState extends State<NotificationPage> {
     markAllAsRead();
   }
 
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    final String? jobId = data['jobId'];
+
+    if (jobId != null && jobId.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => JobDetailsPage(jobId: jobId),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Notifications"),centerTitle: true,),
+      appBar: AppBar(title: const Text("Notifications"), centerTitle: true),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('users')
@@ -59,24 +73,27 @@ class _NotificationPageState extends State<NotificationPage> {
               final isRead = data['isRead'] ?? false;
               final message = data['message'] ?? 'You have a new notification.';
 
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: Icon(
-                    Icons.check_circle,
-                    color: isRead ? Colors.grey : Colors.green,
-                  ),
-                  title: Text(
-                    message,
-                    style: TextStyle(
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+              return GestureDetector(
+                onTap: () => _handleNotificationTap(data),
+                child: Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.notifications,
+                      color: isRead ? Colors.grey : Colors.green,
                     ),
+                    title: Text(
+                      message,
+                      style: TextStyle(
+                        fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: timestamp != null
+                        ? Text('${timestamp.toLocal()}'.split('.')[0])
+                        : null,
+                    tileColor: isRead ? Colors.white : Colors.green.shade50,
                   ),
-                  subtitle: timestamp != null
-                      ? Text('${timestamp.toLocal()}'.split('.')[0])
-                      : null,
-                  tileColor: isRead ? Colors.white : Colors.green.shade50,
                 ),
               );
             },

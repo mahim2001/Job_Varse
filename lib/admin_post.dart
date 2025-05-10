@@ -11,40 +11,42 @@ class AdminJobPostPage extends StatefulWidget {
 
 class _AdminJobPostPageState extends State<AdminJobPostPage> {
   final _formKey = GlobalKey<FormState>();
+
   final titleController = TextEditingController();
   final companyController = TextEditingController();
   final locationController = TextEditingController();
-  final typeController = TextEditingController();
-  final salaryController = TextEditingController();
   final descriptionController = TextEditingController();
-  final deadlineController = TextEditingController();
   final requirementsController = TextEditingController();
-  final experienceController = TextEditingController();
+  final deadlineController = TextEditingController();
+
+  String selectedType = 'Full-Time';
+  String selectedExperience = 'Entry';
+  String selectedSalary = 'Below 20k';
+
+  final List<String> jobTypes = ['Full-Time', 'Part-Time', 'Remote', 'Contract'];
+  final List<String> experienceLevels = ['Entry', 'Mid', 'Senior'];
+  final List<String> salaryRanges = ['Below 20k', '20k-50k', '50k-100k', 'Above 100k'];
 
   bool _isSubmitting = false;
 
   Future<void> _submitJobPost() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isSubmitting = true);
 
     try {
       final adminId = FirebaseAuth.instance.currentUser?.uid;
-
-      if (adminId == null) {
-        throw Exception("Admin not logged in.");
-      }
+      if (adminId == null) throw Exception("Admin not logged in.");
 
       await FirebaseFirestore.instance.collection('jobs').add({
-        'title': titleController.text,
-        'company': companyController.text,
-        'location': locationController.text,
-        'type': typeController.text,
-        'salary': salaryController.text,
-        'description': descriptionController.text,
-        'deadline': deadlineController.text,
-        'requirements': requirementsController.text,
-        'experience': experienceController.text,
+        'title': titleController.text.trim(),
+        'company': companyController.text.trim(),
+        'location': locationController.text.trim(),
+        'type': selectedType,
+        'salary': selectedSalary,
+        'experience': selectedExperience,
+        'description': descriptionController.text.trim(),
+        'requirements': requirementsController.text.trim(),
+        'deadline': deadlineController.text.trim(),
         'createdAt': Timestamp.now(),
         'adminId': adminId,
         'applicants': [],
@@ -54,7 +56,6 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Job posted successfully!")),
       );
-
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +65,6 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
       setState(() => _isSubmitting = false);
     }
   }
-
 
   Future<void> _pickDeadlineDate() async {
     final selectedDate = await showDatePicker(
@@ -82,8 +82,7 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Post a Job"),
-      centerTitle: true,),
+      appBar: AppBar(title: const Text("Post a Job"), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -93,9 +92,9 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
               _buildField(titleController, "Job Title"),
               _buildField(companyController, "Company Name"),
               _buildField(locationController, "Location"),
-              _buildField(typeController, "Job Type (e.g., Full-time, Part-time)"),
-              _buildField(salaryController, "Salary (optional)", required: false),
-              _buildField(experienceController, "Experience Required (e.g., 2+ years)"),
+              _buildDropdown("Job Type", jobTypes, selectedType, (val) => setState(() => selectedType = val!)),
+              _buildDropdown("Experience Level", experienceLevels, selectedExperience, (val) => setState(() => selectedExperience = val!)),
+              _buildDropdown("Salary Range", salaryRanges, selectedSalary, (val) => setState(() => selectedSalary = val!)),
               _buildField(descriptionController, "Job Description", maxLines: 6),
               _buildField(requirementsController, "Requirements", maxLines: 3),
               TextFormField(
@@ -117,9 +116,7 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
                 onPressed: _isSubmitting ? null : _submitJobPost,
                 child: _isSubmitting
                     ? const CircularProgressIndicator()
-                    : const Text("Post Job",
-                  style: TextStyle(fontSize: 14, color: Colors.white),
-                ),
+                    : const Text("Post Job", style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -140,9 +137,23 @@ class _AdminJobPostPageState extends State<AdminJobPostPage> {
           border: const OutlineInputBorder(),
         ),
         validator: required
-            ? (val) =>
-        val == null || val.isEmpty ? 'Please enter $label' : null
+            ? (val) => val == null || val.isEmpty ? 'Please enter $label' : null
             : null,
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, List<String> options, String value, ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
       ),
     );
   }

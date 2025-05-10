@@ -148,6 +148,17 @@ class _DashboardPageState extends State<DashboardPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 100),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/jvbd.png',
+                  width: 400,
+                  height: 600,
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
             FutureBuilder(
               future: Future.wait([
                 _getAppliedJobsCount(),
@@ -195,6 +206,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
             const SizedBox(height: 20),
+
           ],
         ),
       ),
