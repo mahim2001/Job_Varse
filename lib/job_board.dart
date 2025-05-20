@@ -56,7 +56,7 @@ class _JobBoardPageState extends State<JobBoardPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(4),
             child: Column(
               children: [
                 TextField(

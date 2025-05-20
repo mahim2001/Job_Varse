@@ -149,16 +149,35 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 100),
+              padding: const EdgeInsets.only(top: 10),
               child: Center(
                 child: Image.asset(
                   'assets/images/jvbd.png',
                   width: 400,
-                  height: 600,
+                  height: 500,
                 ),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const JobBoardPage()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 80),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.list, color: Colors.white),
+              label: const Text(
+                "Job Board",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+            const SizedBox(height: 20),
             FutureBuilder(
               future: Future.wait([
                 _getAppliedJobsCount(),
@@ -186,26 +205,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const JobBoardPage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.list, color: Colors.white),
-              label: const Text(
-                "Job Board",
-                style: TextStyle(fontSize: 14, color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 20),
+
 
           ],
         ),
