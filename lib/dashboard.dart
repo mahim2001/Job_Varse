@@ -126,8 +126,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   if (hasUnread)
                     Positioned(
-                      right: 15,
-                      top: 15,
+                      right: 20,
+                      top: 20,
                       child: Container(
                         width: 15,
                         height: 15,

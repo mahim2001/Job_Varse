@@ -63,7 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(title: const Text("Settings"),centerTitle: true,),
       body: ListView(
         children: [
           ListTile(
@@ -94,7 +94,6 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
-
           ListTile(
             title: const Text("Email Verification"),
             subtitle: Text(
