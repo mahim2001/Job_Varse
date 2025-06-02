@@ -20,6 +20,7 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
   bool _isSigningUp = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _emailSent = false;
 
   Future<void> _signUpAdmin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -33,12 +34,14 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
     setState(() => _isSigningUp = true);
 
     try {
+      // Create user in Firebase Auth
       final UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
 
+      // Save admin data to Firestore
       await FirebaseFirestore.instance
           .collection('admins')
           .doc(userCredential.user!.uid)
@@ -48,14 +51,18 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
         'email': emailController.text.trim(),
         'phone': phoneController.text.trim(),
         'role': 'admin',
+        'emailVerified': false, // Track verification status
         'createdAt': Timestamp.now(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Admin account created successfully!")),
-      );
+      // Send verification email
+      await _sendVerificationEmail(userCredential.user!);
 
-      Navigator.pop(context); // Go back to login or dashboard
+      setState(() => _emailSent = true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Verification email sent! Please check your inbox.")),
+      );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'Error during sign-up')),
@@ -65,16 +72,59 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
     }
   }
 
+  Future<void> _sendVerificationEmail(User user) async {
+    try {
+      await user.sendEmailVerification();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send verification email: $e')),
+      );
+    }
+  }
+
+  Future<void> _checkEmailVerification() async {
+    try {
+      // Reload user to get latest verification status
+      await FirebaseAuth.instance.currentUser?.reload();
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null && user.emailVerified) {
+        // Update Firestore with verified status
+        await FirebaseFirestore.instance
+            .collection('admins')
+            .doc(user.uid)
+            .update({'emailVerified': true});
+
+        Navigator.pop(context); // Go back to login or dashboard
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email verified successfully!")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email not yet verified. Please check your inbox.")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error checking verification: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Admin Sign Up")),
+      appBar: AppBar(title: const Text("Admin Sign Up"),centerTitle: true,),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              if (_emailSent) ...[
+                _buildVerificationBanner(),
+                const SizedBox(height: 20),
+              ],
               _buildTextField(nameController, "Full Name"),
               _buildTextField(emailController, "Email"),
               _buildTextField(phoneController, "Phone Number",
@@ -107,6 +157,55 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVerificationBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Verification Email Sent",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Please check your email and click the verification link to activate your account.",
+            style: TextStyle(color: Colors.blue),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              TextButton(
+                onPressed: _checkEmailVerification,
+                child: const Text("I've verified my email"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    await _sendVerificationEmail(user);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Verification email resent!")),
+                    );
+                  }
+                },
+                child: const Text("Resend email"),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

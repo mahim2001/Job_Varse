@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import 'dashboard.dart';
+
 class CreateProfilePage extends StatefulWidget {
   const CreateProfilePage({super.key});
 
@@ -38,27 +40,24 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
   Future<void> _submitProfile() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
 
     try {
+      // 1. Upload image if exists
       String? imageUrl;
       if (_profileImage != null) {
-        try {
-          final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          final storageRef = FirebaseStorage.instance.ref().child('profile_images/$fileName');
-
-          final uploadTask = await storageRef.putFile(_profileImage!);
-          imageUrl = await storageRef.getDownloadURL();
-        } catch (e) {
-          imageUrl = '';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Image upload failed: $e")),
-          );
-        }
+        final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final storageRef = FirebaseStorage.instance.ref().child('profile_images/$fileName');
+        await storageRef.putFile(_profileImage!);
+        imageUrl = await storageRef.getDownloadURL();
       }
 
-
-      final profileData = {
+      // 2. Save profile data
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
         'name': nameController.text,
         'birthday': birthdayController.text,
         'gender': genderController.text,
@@ -68,104 +67,166 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         'nid': nidController.text,
         'passport': passportController.text,
         'imageUrl': imageUrl ?? '',
-        'verifiedEmail': user.emailVerified,
-        'uid': user.uid,
-      };
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(profileData);
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-
-
+      // 3. Send verification email if needed
       if (!user.emailVerified) {
         await user.sendEmailVerification();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent!'),
-          ),
-        );
       }
 
+      // 4. Show success feedback
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile Updated successfully!')),
+        const SnackBar(
+          content: Text('Profile saved successfully!'),
+          duration: Duration(seconds: 1),
+        ),
       );
+
+      // 5. Automatic navigation after slight delay
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
+        SnackBar(content: Text('Error: ${e.toString()}')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _pickDate() async {
     DateTime? date = await showDatePicker(
       context: context,
-      firstDate: DateTime(1950),
+      firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      initialDate: DateTime(2000),
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
     );
     if (date != null) {
-      birthdayController.text = DateFormat('yyyy-MM-dd').format(date);
+      setState(() {
+        birthdayController.text = DateFormat('yyyy-MM-dd').format(date);
+      });
     }
   }
 
   @override
   void initState() {
-    emailController.text = user.email ?? '';
     super.initState();
+    emailController.text = user.email ?? '';
+    _loadExistingProfile();
+  }
+
+  Future<void> _loadExistingProfile() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          nameController.text = data['name'] ?? '';
+          birthdayController.text = data['birthday'] ?? '';
+          genderController.text = data['gender'] ?? '';
+          addressController.text = data['address'] ?? '';
+          phoneController.text = data['phone'] ?? '';
+          nidController.text = data['nid'] ?? '';
+          passportController.text = data['passport'] ?? '';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading profile: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profile"),
+        title: const Text("Complete Your Profile"),
         centerTitle: true,
+        elevation: 0,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
             children: [
-              Center(
-                child: GestureDetector(
-                  onTap: _pickImage,
-                  child: CircleAvatar(
-                    radius: 50,
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 60,
                     backgroundImage: _profileImage != null
                         ? FileImage(_profileImage!)
                         : null,
                     child: _profileImage == null
-                        ? const Icon(Icons.camera_alt, size: 40)
+                        ? const Icon(Icons.person, size: 60)
                         : null,
                   ),
-                ),
+                  FloatingActionButton.small(
+                    onPressed: _pickImage,
+                    child: const Icon(Icons.camera_alt),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               _buildTextField(nameController, "Full Name"),
-              _buildTextField(birthdayController, "Birthday",
-                  readOnly: true, onTap: _pickDate),
-              _buildDropdown(genderController),
-              _buildTextField(addressController, "Address"),
-              _buildTextField(phoneController, "Phone"),
+              _buildDateField(),
+              _buildGenderDropdown(),
+              _buildTextField(addressController, "Address", maxLines: 2),
+              _buildTextField(phoneController, "Phone Number",
+                  keyboardType: TextInputType.phone),
               _buildTextField(emailController, "Email", readOnly: true),
-              _buildTextField(nidController, "NID Number"),
+              _buildTextField(nidController, "National ID Number"),
               _buildTextField(passportController, "Passport Number"),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                onPressed: _isLoading ? null : _submitProfile,
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text(
-                  "Save Profile",
-                  style: TextStyle(color: Colors.white),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue, // Button color
+                    foregroundColor: Colors.white, // Text color
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 50), // Full width button
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
+                  ),
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                    await _submitProfile();
+                    // Automatic navigation happens inside _submitProfile()
+                  },
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                      : const Text(
+                    'SAVE PROFILE',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -175,39 +236,83 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      {bool readOnly = false, VoidCallback? onTap}) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label, {
+        bool readOnly = false,
+        TextInputType? keyboardType,
+        int maxLines = 1,
+      }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
         readOnly: readOnly,
-        onTap: onTap,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
+          filled: readOnly,
+          fillColor: Colors.grey[200],
         ),
-        validator: (value) =>
-        value == null || value.isEmpty ? 'Enter $label' : null,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
       ),
     );
   }
 
-  Widget _buildDropdown(TextEditingController controller) {
+  Widget _buildDateField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: birthdayController,
+        readOnly: true,
+        onTap: _pickDate,
+        decoration: const InputDecoration(
+          labelText: "Date of Birth",
+          border: OutlineInputBorder(),
+          suffixIcon: Icon(Icons.calendar_today),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please select your date of birth';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
-        value: controller.text.isNotEmpty ? controller.text : null,
-        items: ['Male', 'Female', 'Other']
-            .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-            .toList(),
-        onChanged: (val) => controller.text = val ?? '',
+        value: genderController.text.isEmpty ? null : genderController.text,
+        items: const [
+          DropdownMenuItem(value: 'Male', child: Text('Male')),
+          DropdownMenuItem(value: 'Female', child: Text('Female')),
+          DropdownMenuItem(value: 'Other', child: Text('Other')),
+        ],
+        onChanged: (value) {
+          setState(() {
+            genderController.text = value ?? '';
+          });
+        },
         decoration: const InputDecoration(
           labelText: "Gender",
           border: OutlineInputBorder(),
         ),
-        validator: (value) =>
-        value == null || value.isEmpty ? 'Select your gender' : null,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please select your gender';
+          }
+          return null;
+        },
       ),
     );
   }
