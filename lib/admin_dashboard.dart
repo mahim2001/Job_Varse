@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'admin_post.dart';
 import 'admin_login.dart';
+import 'andmin_job_list.dart';
 import 'current_admin_job_board.dart';
 import 'job_board_admin.dart';
 
@@ -54,7 +55,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AdminJobPostPage()),
+                  MaterialPageRoute(builder: (_) => const AdminJobPostPage(initialData: {}, jobId: '',)),
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -62,6 +63,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
               ),
               icon: const Icon(Icons.work,color: Colors.white,),
+              label: const Text("Post A New Job",
+                style: TextStyle(fontSize: 14, color: Colors.white),
+              ),
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminJobListPage()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
+              icon: const Icon(Icons.edit_note,color: Colors.white,),
               label: const Text("Manage Job Posts",
                 style: TextStyle(fontSize: 14, color: Colors.white),
               ),
@@ -95,7 +112,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 backgroundColor: Colors.blue,
               ),
               icon: const Icon(Icons.list,color: Colors.white,),
-              label: const Text("Job Board",
+              label: const Text("All Available Jobs",
                 style: TextStyle(fontSize: 14, color: Colors.white),
               ),
             ),

@@ -11,7 +11,7 @@ class AdminJobBoardPage extends StatelessWidget {
     final adminId = FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Job Posts')),
+      appBar: AppBar(title: const Text("My Job Posts",)),
       body: StreamBuilder(
         stream: FirebaseFirestore.instance
             .collection('jobs')

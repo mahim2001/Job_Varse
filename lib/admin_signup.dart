@@ -34,14 +34,13 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
     setState(() => _isSigningUp = true);
 
     try {
-      // Create user in Firebase Auth
+
       final UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
 
-      // Save admin data to Firestore
       await FirebaseFirestore.instance
           .collection('admins')
           .doc(userCredential.user!.uid)
@@ -51,11 +50,10 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
         'email': emailController.text.trim(),
         'phone': phoneController.text.trim(),
         'role': 'admin',
-        'emailVerified': false, // Track verification status
+        'emailVerified': false,
         'createdAt': Timestamp.now(),
       });
 
-      // Send verification email
       await _sendVerificationEmail(userCredential.user!);
 
       setState(() => _emailSent = true);
@@ -84,12 +82,10 @@ class _AdminSignUpPageState extends State<AdminSignUpPage> {
 
   Future<void> _checkEmailVerification() async {
     try {
-      // Reload user to get latest verification status
       await FirebaseAuth.instance.currentUser?.reload();
       final user = FirebaseAuth.instance.currentUser;
 
       if (user != null && user.emailVerified) {
-        // Update Firestore with verified status
         await FirebaseFirestore.instance
             .collection('admins')
             .doc(user.uid)

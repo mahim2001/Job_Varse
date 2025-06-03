@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class AdminJobPostPage extends StatefulWidget {
-  const AdminJobPostPage({super.key});
+  const AdminJobPostPage({super.key, required Map<String, dynamic> initialData, required String jobId});
 
   @override
   State<AdminJobPostPage> createState() => _AdminJobPostPageState();
