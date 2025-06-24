@@ -6,10 +6,10 @@ JobVarse BD is a mobile-based job portal application designed to connect job see
 
 ## Technology Stack
 ### Frontend :
--Flutter is a frontend framework used to build the user interface of apps.
+- Flutter is a frontend framework used to build the user interface of apps.
 
 ### Backend :
--Firebase is a backend platform that provides services like authentication, real-time databases, cloud storage and hosting.
+- Firebase is a backend platform that provides services like authentication, real-time databases, cloud storage and hosting.
 
 ### Development Environment & Platform :
--Android Studio
+- Android Studio
