@@ -1,16 +1,14 @@
-# jobvarse_bd
-# newjobvarse
-A new Flutter project.
+# JobVarse BD
 
-## Getting Started
+## Introduction
+JobVarse BD is a mobile-based job portal application designed to connect job seekers and employers across Bangladesh. The system aims to streamline the recruitment process by allowing users to explore job opportunities, apply directly through the app, and track the status of their applications in real-time. Developed using Flutter and Firebase, JobVarse BD offers a responsive, user-friendly experience for both applicants and employers.
 
-This project is a starting point for a Flutter application.
+## Technology Stack
+### Frontend :
+- Flutter is a frontend framework used to build the user interface of apps.
 
-A few resources to get you started if this is your first Flutter project:
+### Backend :
+- Firebase is a backend platform that provides services like authentication, real-time databases, cloud storage and hosting.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Development Environment & Platform :
+- Android Studio
