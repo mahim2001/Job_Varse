@@ -20,10 +20,12 @@ class _CVTemplate3State extends State<CVTemplate3> {
   Future<void> _captureAndPrintWidget() async {
     try {
       RenderRepaintBoundary boundary =
-      _previewContainer.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      _previewContainer.currentContext!.findRenderObject()
+      as RenderRepaintBoundary;
 
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final pdf = pw.Document();
@@ -31,7 +33,8 @@ class _CVTemplate3State extends State<CVTemplate3> {
 
       pdf.addPage(
         pw.Page(
-          build: (pw.Context context) => pw.Center(child: pw.Image(imageProvider)),
+          build: (pw.Context context) =>
+              pw.Center(child: pw.Image(imageProvider)),
         ),
       );
 
@@ -67,16 +70,23 @@ class _CVTemplate3State extends State<CVTemplate3> {
                 Expanded(
                   flex: 1,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      if (data['image'] != null && data['image'].isNotEmpty)
+                      if (data['profileImage'] != null && data['profileImage'].isNotEmpty)
                         CircleAvatar(
-                          backgroundImage: NetworkImage(data['image']),
+                          backgroundImage: NetworkImage(data['profileImage']),
                           radius: 50,
+                        )
+                      else
+                        const CircleAvatar(
+                          radius: 50,
+                          child: Icon(Icons.person, size: 40),
                         ),
                       const SizedBox(height: 10),
                       Text(
                         data['name'] ?? '',
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
                       Text("Email: ${data['email']}"),

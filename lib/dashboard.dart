@@ -149,12 +149,12 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: 0),
               child: Center(
                 child: Image.asset(
                   'assets/images/jvbd.png',
-                  width: 400,
-                  height: 500,
+                  width: 300,
+                  height: 400,
                 ),
               ),
             ),

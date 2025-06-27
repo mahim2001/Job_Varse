@@ -52,8 +52,11 @@ class _JobBoardPageState extends State<JobBoardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Job Board'), centerTitle: true,backgroundColor: Colors.blue,),
-      body: Column(
+      appBar: AppBar(title: const Text('Job Board'), centerTitle: true,
+        backgroundColor: Colors.blue,
+      ),
+      body:
+      Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(4),

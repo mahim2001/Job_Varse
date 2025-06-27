@@ -20,10 +20,12 @@ class _CVTemplate1State extends State<CVTemplate1> {
   Future<void> _captureAndPrintWidget() async {
     try {
       RenderRepaintBoundary boundary =
-      _previewContainer.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      _previewContainer.currentContext!.findRenderObject()
+      as RenderRepaintBoundary;
 
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final pdf = pw.Document();
@@ -31,7 +33,8 @@ class _CVTemplate1State extends State<CVTemplate1> {
 
       pdf.addPage(
         pw.Page(
-          build: (pw.Context context) => pw.Center(child: pw.Image(imageProvider)),
+          build: (pw.Context context) =>
+              pw.Center(child: pw.Image(imageProvider)),
         ),
       );
 
@@ -64,10 +67,10 @@ class _CVTemplate1State extends State<CVTemplate1> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (data['image'] != null && data['image'].isNotEmpty)
+                if (data['profileImage'] != null && data['profileImage'].isNotEmpty)
                   Center(
                     child: CircleAvatar(
-                      backgroundImage: NetworkImage(data['image']),
+                      backgroundImage: NetworkImage(data['profileImage']),
                       radius: 50,
                     ),
                   ),

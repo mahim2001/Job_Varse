@@ -32,17 +32,6 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
         });
         return;
       }
-
-      // Verify admin status (optional - add your admin verification logic)
-      // final adminDoc = await _firestore.collection('admins').doc(user.uid).get();
-      // if (!adminDoc.exists) {
-      //   setState(() {
-      //     _errorMessage = 'Unauthorized access';
-      //     _isLoading = false;
-      //   });
-      //   return;
-      // }
-
       setState(() {
         _isLoading = false;
       });
@@ -72,9 +61,7 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
               Text(_errorMessage!),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Go Back'),
               ),
             ],
@@ -94,7 +81,7 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AdminJobPostPage(initialData: {}, jobId: '',),
+                  builder: (context) => const AdminJobPostPage(initialData: {}, jobId: ''),
                 ),
               );
             },
@@ -105,33 +92,17 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
         stream: _firestore
             .collection('jobs')
             .where('adminId', isEqualTo: _auth.currentUser?.uid)
-            .orderBy('createdAt', descending: true)
-            .snapshots(includeMetadataChanges: true),
+            .orderBy('createdAt') // To avoid index error, orderBy field must be indexed in Firebase
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}'),
-            );
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text('No job posts found'));
-          }
-
-          // Check for metadata changes to handle offline scenarios
-          if (snapshot.data!.metadata.isFromCache) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Showing cached data'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            });
           }
 
           return ListView.builder(
@@ -139,29 +110,19 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
-
               return Card(
                 margin: const EdgeInsets.all(8),
                 elevation: 2,
                 child: ListTile(
-                  title: Text(
-                    data['title'] ?? 'No title',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  title: Text(data['title'] ?? 'No title', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(data['company'] ?? 'No company'),
                       const SizedBox(height: 4),
-                      Text(
-                        '${data['type']} • ${data['location']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      Text('${data['type']} • ${data['location']}', style: const TextStyle(fontSize: 12)),
                       const SizedBox(height: 4),
-                      Text(
-                        'Deadline: ${data['deadline']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      Text('Deadline: ${data['deadline']}', style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                   trailing: PopupMenuButton<String>(
@@ -181,22 +142,12 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
                         _confirmDelete(doc.id);
                       }
                     },
-                    itemBuilder: (BuildContext context) {
-                      return [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete', style: TextStyle(color: Colors.red)),
-                        ),
-                      ];
-                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                    ],
                   ),
-                  onTap: () {
-                    _showJobDetails(context, data);
-                  },
+                  onTap: () => _showJobDetails(context, data),
                 ),
               );
             },
@@ -207,28 +158,22 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
   }
 
   Future<void> _confirmDelete(String jobId) async {
-    return showDialog<void>(
+    showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: const Text('Are you sure you want to delete this job post?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _deleteJobPost(jobId);
-              },
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete this job post?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteJobPost(jobId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -236,21 +181,11 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
     try {
       await _firestore.collection('jobs').doc(jobId).delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Job post deleted successfully')),
-        );
-      }
-    } on FirebaseException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: ${e.message}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job post deleted')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -259,59 +194,45 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                data['title'] ?? 'No title',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                data['company'] ?? 'No company',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-              _buildDetailRow('Location', data['location']),
-              _buildDetailRow('Job Type', data['type']),
-              _buildDetailRow('Experience', data['experience']),
-              _buildDetailRow('Salary', data['salary']),
-              _buildDetailRow('Deadline', data['deadline']),
-              const SizedBox(height: 16),
-              const Text(
-                'Job Description:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(data['description'] ?? 'No description provided'),
-              const SizedBox(height: 16),
-              const Text(
-                'Requirements:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(data['requirements'] ?? 'No requirements provided'),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
+            ),
+            const SizedBox(height: 16),
+            Text(data['title'] ?? 'No title', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(data['company'] ?? 'No company', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            const Divider(),
+            _buildDetailRow('Location', data['location']),
+            _buildDetailRow('Job Type', data['type']),
+            _buildDetailRow('Experience', data['experience']),
+            _buildDetailRow('Salary', data['salary']),
+            _buildDetailRow('Deadline', data['deadline']),
+            const SizedBox(height: 16),
+            const Text('Job Description:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(data['description'] ?? 'No description provided'),
+            const SizedBox(height: 16),
+            const Text('Requirements:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(data['requirements'] ?? 'No requirements provided'),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
     );
   }
 
@@ -321,13 +242,7 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
+          SizedBox(width: 100, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold))),
           Expanded(child: Text(value ?? 'Not specified')),
         ],
       ),

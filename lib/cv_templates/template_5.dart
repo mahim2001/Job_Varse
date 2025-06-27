@@ -69,15 +69,21 @@ class _CVTemplate5State extends State<CVTemplate5> {
             children: [
               // Sidebar
               Container(
-                width: 140,
+                width: 150,
                 color: Colors.blueGrey.shade50,
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    if (data['image'] != null && data['image'].isNotEmpty)
+                    if (data['profileImage'] != null &&
+                        data['profileImage'].toString().isNotEmpty)
                       CircleAvatar(
-                        backgroundImage: NetworkImage(data['image']),
+                        backgroundImage: NetworkImage(data['profileImage']),
                         radius: 40,
+                      )
+                    else
+                      const CircleAvatar(
+                        radius: 40,
+                        child: Icon(Icons.person, size: 40),
                       ),
                     const SizedBox(height: 10),
                     Text(
@@ -93,10 +99,12 @@ class _CVTemplate5State extends State<CVTemplate5> {
                     Text("🎂 DOB: ${data['dob']}"),
                     Text("🏠 ${data['address']}"),
                     const SizedBox(height: 10),
-                    const Text("Skills", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Skills",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     Text(data['skills'] ?? ''),
                     const SizedBox(height: 8),
-                    const Text("Languages", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Languages",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     Text(data['languages'] ?? ''),
                   ],
                 ),
@@ -108,32 +116,48 @@ class _CVTemplate5State extends State<CVTemplate5> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("🎓 Education", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text("SSC: ${data['ssc_school']}, ${data['ssc_board']} (${data['ssc_year']}) - ${data['ssc_result']}"),
-                      Text("HSC: ${data['hsc_college']}, ${data['hsc_board']} (${data['hsc_year']}) - ${data['hsc_result']}"),
-                      Text("Bachelor: ${data['bachelor_subject']}, ${data['bachelor_university']} (${data['bachelor_year']}) - ${data['bachelor_result']}"),
-                      if (data['masters_subject'] != null && data['masters_subject'] != '')
-                        Text("Masters: ${data['masters_subject']}, ${data['masters_university']} (${data['masters_year']}) - ${data['masters_result']}"),
+                      const Text("🎓 Education",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                          "SSC: ${data['ssc_school']}, ${data['ssc_board']} (${data['ssc_year']}) - ${data['ssc_result']}"),
+                      Text(
+                          "HSC: ${data['hsc_college']}, ${data['hsc_board']} (${data['hsc_year']}) - ${data['hsc_result']}"),
+                      Text(
+                          "Bachelor: ${data['bachelor_subject']}, ${data['bachelor_university']} (${data['bachelor_year']}) - ${data['bachelor_result']}"),
+                      if (data['masters_subject'] != null &&
+                          data['masters_subject'].toString().isNotEmpty)
+                        Text(
+                            "Masters: ${data['masters_subject']}, ${data['masters_university']} (${data['masters_year']}) - ${data['masters_result']}"),
                       const SizedBox(height: 10),
-                      const Text("💼 Experience", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text("💼 Experience",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
                       if (data['workExperiences'] != null)
-                        ...List.generate(data['workExperiences'].length, (index) {
-                          final exp = data['workExperiences'][index];
-                          if ((exp['title'] ?? '').isEmpty) return const SizedBox();
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Text("${exp['title']} at ${exp['company']} (${exp['duration']})"),
-                          );
-                        }),
+                        ...List.generate(data['workExperiences'].length,
+                                (index) {
+                              final exp = data['workExperiences'][index];
+                              if ((exp['title'] ?? '').isEmpty) {
+                                return const SizedBox();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                    "${exp['title']} at ${exp['company']} (${exp['duration']})"),
+                              );
+                            }),
                       Text("Total Experience: ${data['experienceYears']} years"),
                       const SizedBox(height: 10),
-                      const Text("📜 Certifications", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("📜 Certifications",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['certifications'] ?? 'N/A'),
                       const SizedBox(height: 6),
-                      const Text("🏆 Projects / Achievements", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("🏆 Projects / Achievements",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['projects'] ?? ''),
                       const SizedBox(height: 6),
-                      const Text("📞 Reference", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("📞 Reference",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['reference'] ?? ''),
                     ],
                   ),

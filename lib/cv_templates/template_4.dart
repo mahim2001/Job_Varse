@@ -20,10 +20,12 @@ class _CVTemplate4State extends State<CVTemplate4> {
   Future<void> _captureAndPrintWidget() async {
     try {
       RenderRepaintBoundary boundary =
-      _previewContainer.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      _previewContainer.currentContext!.findRenderObject()
+      as RenderRepaintBoundary;
 
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final pdf = pw.Document();
@@ -63,14 +65,18 @@ class _CVTemplate4State extends State<CVTemplate4> {
             color: Colors.white,
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (data['image'] != null && data['image'].isNotEmpty)
+                if (data['profileImage'] != null && data['profileImage'].isNotEmpty)
                   CircleAvatar(
-                    backgroundImage: NetworkImage(data['image']),
+                    backgroundImage: NetworkImage(data['profileImage']),
                     radius: 50,
+                  )
+                else
+                  const CircleAvatar(
+                    radius: 50,
+                    child: Icon(Icons.person, size: 40),
                   ),
                 const SizedBox(height: 10),
                 Text(
@@ -87,7 +93,7 @@ class _CVTemplate4State extends State<CVTemplate4> {
                 Text("SSC: ${data['ssc_school']} (${data['ssc_year']}) - ${data['ssc_result']}"),
                 Text("HSC: ${data['hsc_college']} (${data['hsc_year']}) - ${data['hsc_result']}"),
                 Text("Bachelor: ${data['bachelor_subject']} - ${data['bachelor_university']} (${data['bachelor_year']})"),
-                if (data['masters_subject'] != null && data['masters_subject'] != '')
+                if (data['masters_subject'] != null && data['masters_subject'].toString().isNotEmpty)
                   Text("Masters: ${data['masters_subject']} - ${data['masters_university']} (${data['masters_year']})"),
 
                 const SizedBox(height: 10),
@@ -124,7 +130,10 @@ class _CVTemplate4State extends State<CVTemplate4> {
   Widget sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 6),
-      child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+      child: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
     );
   }
 }

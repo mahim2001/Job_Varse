@@ -39,7 +39,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.admin_panel_settings, size: 80, color: Colors.blue),
+            const Icon(Icons.admin_panel_settings, size: 100, color: Colors.blue),
             const SizedBox(height: 20),
             Text(
               'Welcome Admin!',

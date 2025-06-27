@@ -20,10 +20,12 @@ class _CVTemplate2State extends State<CVTemplate2> {
   Future<void> _captureAndPrintWidget() async {
     try {
       RenderRepaintBoundary boundary =
-      _previewContainer.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      _previewContainer.currentContext!.findRenderObject()
+      as RenderRepaintBoundary;
 
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final pdf = pw.Document();
@@ -31,7 +33,8 @@ class _CVTemplate2State extends State<CVTemplate2> {
 
       pdf.addPage(
         pw.Page(
-          build: (pw.Context context) => pw.Center(child: pw.Image(imageProvider)),
+          build: (pw.Context context) =>
+              pw.Center(child: pw.Image(imageProvider)),
         ),
       );
 
@@ -59,21 +62,31 @@ class _CVTemplate2State extends State<CVTemplate2> {
         child: RepaintBoundary(
           key: _previewContainer,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Sidebar
               Container(
-                width: 140,
+                width: 160,
                 color: Colors.blueGrey.shade50,
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    if (data['image'] != null && data['image'].isNotEmpty)
+                    if (data['profileImage'] != null && data['profileImage'].isNotEmpty)
                       CircleAvatar(
-                        backgroundImage: NetworkImage(data['image']),
+                        backgroundImage: NetworkImage(data['profileImage']),
                         radius: 40,
+                      )
+                    else
+                      const CircleAvatar(
+                        radius: 40,
+                        child: Icon(Icons.person, size: 40),
                       ),
                     const SizedBox(height: 10),
-                    Text(data['name'] ?? '', textAlign: TextAlign.center),
+                    Text(
+                      data['name'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const Divider(),
                     Text("📧 ${data['email']}"),
                     Text("📞 ${data['phone']}"),
@@ -82,6 +95,7 @@ class _CVTemplate2State extends State<CVTemplate2> {
                   ],
                 ),
               ),
+
               // Main Content
               Expanded(
                 child: Container(
@@ -108,12 +122,16 @@ class _CVTemplate2State extends State<CVTemplate2> {
                       const Divider(),
                       const Text("🛠 Skills", style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['skills'] ?? ''),
+                      const SizedBox(height: 4),
                       const Text("🌐 Languages", style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['languages'] ?? ''),
+                      const SizedBox(height: 4),
                       const Text("📜 Certifications", style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['certifications'] ?? 'N/A'),
+                      const SizedBox(height: 4),
                       const Text("🏆 Projects", style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['projects'] ?? ''),
+                      const SizedBox(height: 4),
                       const Text("📞 Reference", style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(data['reference'] ?? ''),
                     ],

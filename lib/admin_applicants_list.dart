@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Add this for opening URLs
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminViewApplicantsPage extends StatelessWidget {
   final String jobId;
@@ -20,6 +20,13 @@ class AdminViewApplicantsPage extends StatelessWidget {
       data['uid'] = uid;
       data['shortlisted'] = shortlistedIds.contains(uid);
       data['jobTitle'] = jobTitle;
+
+      // 🔍 Fetch CV URL from Firestore if stored separately
+      final cvSnapshot = await FirebaseFirestore.instance.collection('cvUploads').doc(uid).get();
+      if (cvSnapshot.exists && cvSnapshot.data()?['cvUrl'] != null) {
+        data['cvUrl'] = cvSnapshot['cvUrl'];
+      }
+
       applicants.add(data);
     }
 
@@ -48,8 +55,9 @@ class AdminViewApplicantsPage extends StatelessWidget {
   }
 
   Future<void> _launchCV(String url) async {
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       throw 'Could not launch $url';
     }
@@ -116,7 +124,7 @@ class AdminViewApplicantsPage extends StatelessWidget {
                             );
                           },
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                          child: const Text("Shortlist",style: TextStyle(color: Colors.black),),
+                          child: const Text("Shortlist", style: TextStyle(color: Colors.white)),
                         )
                       else
                         const Chip(label: Text("Shortlisted")),
