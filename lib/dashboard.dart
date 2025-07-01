@@ -126,11 +126,11 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   if (hasUnread)
                     Positioned(
-                      right: 20,
-                      top: 20,
+                      right: 8,
+                      top: 8,
                       child: Container(
-                        width: 15,
-                        height: 15,
+                        width: 14,
+                        height: 14,
                         decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
@@ -142,7 +142,6 @@ class _DashboardPageState extends State<DashboardPage> {
             },
           ),
         ],
-
       ),
       drawer: AppDrawer(onItemTapped: _onDrawerItemTapped),
       body: SingleChildScrollView(

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'job_details.dart'; // Make sure this import points to your JobDetailsPage file
+import 'package:intl/intl.dart';
+import 'job_details.dart';
 
 class NotificationPage extends StatefulWidget {
   final String userId;
@@ -12,30 +13,60 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isMarkingAsRead = false;
+  String? _errorMessage;
 
-  Future<void> markAllAsRead() async {
-    final query = await _firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('notifications')
-        .where('isRead', isEqualTo: false)
-        .get();
+  Future<void> _markAllAsRead() async {
+    try {
+      setState(() => _isMarkingAsRead = true);
 
-    for (var doc in query.docs) {
-      await doc.reference.update({'isRead': true});
+      final querySnapshot = await _firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('notifications')
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = _firestore.batch();
+      for (var doc in querySnapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      setState(() => _errorMessage = 'Failed to mark as read: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() => _isMarkingAsRead = false);
+      }
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    markAllAsRead();
+  Future<void> _markSingleAsRead(String notificationId) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
-  void _handleNotificationTap(Map<String, dynamic> data) {
-    final String? jobId = data['jobId'];
+  void _handleNotificationTap(DocumentSnapshot notification) {
+    final data = notification.data() as Map<String, dynamic>;
+    final jobId = data['jobId'] as String?;
 
     if (jobId != null && jobId.isNotEmpty) {
+      // Mark as read when tapped
+      _markSingleAsRead(notification.id);
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -45,11 +76,90 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
+  String _formatTimestamp(Timestamp timestamp) {
+    return DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate());
+  }
+
+  Widget _buildNotificationItem(DocumentSnapshot notification) {
+    final data = notification.data() as Map<String, dynamic>;
+    final isRead = data['isRead'] ?? false;
+    final message = data['message'] ?? 'New notification';
+    final timestamp = data['timestamp'] as Timestamp?;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _handleNotificationTap(notification),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isRead ? Colors.grey : Colors.green,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (timestamp != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTimestamp(timestamp),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!isRead)
+                const Icon(Icons.circle, size: 12, color: Colors.green),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Notifications"), centerTitle: true),
-      body: StreamBuilder<QuerySnapshot>(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: _isMarkingAsRead
+                ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                : const Icon(Icons.mark_email_read),
+            onPressed: _isMarkingAsRead ? null : _markAllAsRead,
+            tooltip: 'Mark all as read',
+          ),
+        ],
+      ),
+      body: _errorMessage != null
+          ? Center(child: Text(_errorMessage!))
+          : StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('users')
             .doc(widget.userId)
@@ -57,46 +167,42 @@ class _NotificationPageState extends State<NotificationPage> {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-          final notifications = snapshot.data!.docs;
-
-          if (notifications.isEmpty) {
-            return const Center(child: Text("No notifications yet."));
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          return ListView.builder(
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              final data = notifications[index].data() as Map<String, dynamic>;
-              final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-              final isRead = data['isRead'] ?? false;
-              final message = data['message'] ?? 'You have a new notification.';
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error.toString()}'),
+            );
+          }
 
-              return GestureDetector(
-                onTap: () => _handleNotificationTap(data),
-                child: Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.notifications,
-                      color: isRead ? Colors.grey : Colors.green,
-                    ),
-                    title: Text(
-                      message,
-                      style: TextStyle(
-                        fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: timestamp != null
-                        ? Text('${timestamp.toLocal()}'.split('.')[0])
-                        : null,
-                    tileColor: isRead ? Colors.white : Colors.green.shade50,
-                  ),
-                ),
-              );
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_off, size: 48, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No notifications yet'),
+                ],
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _errorMessage = null;
+              });
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (context, index) {
+                return _buildNotificationItem(snapshot.data!.docs[index]);
+              },
+            ),
           );
         },
       ),

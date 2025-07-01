@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jobvarse_bd/job_board.dart';
 import 'admin_login.dart';
+import 'job_board_admin.dart';
 import 'login.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 
 
 class HomePage extends StatelessWidget {
@@ -88,7 +89,6 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -103,8 +103,24 @@ class HomePage extends StatelessWidget {
                   style: TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
-              const SizedBox(height: 30),
-
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const JobBoardPage()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 25),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                label: const Text(
+                  "Job Board",
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ),
               const SizedBox(height: 20),
               const Text(
                 'Contact Us:',
@@ -113,7 +129,7 @@ class HomePage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -122,13 +138,13 @@ class HomePage extends StatelessWidget {
                     label: const Text('Email: support@jobvarse.com'),
                     onPressed: _launchEmail,
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: .5),
                   TextButton.icon(
                     icon: const Icon(Icons.call, color: Colors.green),
                     label: const Text('Call: +8801234567890'),
                     onPressed: _launchPhone,
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: .5),
                   TextButton.icon(
                     icon: const Icon(Icons.language, color: Colors.orange),
                     label: const Text('Website: jobvarsebd.com'),

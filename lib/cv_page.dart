@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'cv_input_data.dart';
 import 'cv_upload.dart';
+import 'cv_upload_new.dart';
 import 'cv_view_uploaded.dart';
 
 
@@ -10,7 +11,7 @@ class CVPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("CV Options")),
+      appBar: AppBar(title: const Text("CV Options"), centerTitle: true,),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -43,7 +44,7 @@ class CVPage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ViewUploadedCVPage()),
+                  MaterialPageRoute(builder: (_) => const CvUploadPage()),
                 );
               },
             ),

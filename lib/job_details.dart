@@ -1,21 +1,28 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class JobDetailsPage extends StatelessWidget {
+class JobDetailsPage extends StatefulWidget {
   final String jobId;
   const JobDetailsPage({super.key, required this.jobId});
 
-  Future<void> _applyForJob(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
+  @override
+  State<JobDetailsPage> createState() => _JobDetailsPageState();
+}
 
+class _JobDetailsPageState extends State<JobDetailsPage> {
+  bool _isApplying = false;
+  bool _isViewingCV = false;
+
+  Future<void> _applyForJob() async {
+    final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You must be logged in to apply.")),
-      );
+      _showSnackBar("You must be logged in to apply");
       return;
     }
+
+    setState(() => _isApplying = true);
 
     try {
       final userDoc = await FirebaseFirestore.instance
@@ -26,86 +33,117 @@ class JobDetailsPage extends StatelessWidget {
       final cvUrl = userDoc.data()?['cvUrl'] ?? '';
 
       if (cvUrl.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please upload your CV first.")),
-        );
+        _showSnackBar("Please upload your CV first");
         return;
       }
 
-      final jobRef =
-      FirebaseFirestore.instance.collection('jobs').doc(jobId);
-
-      print("User ID: ${user.uid}");
-      print("Job ID: $jobId");
-      print("CV URL: $cvUrl");
-
-      // Add user to job's applicant list
-      await jobRef.update({
+      // Add to applicants list
+      await FirebaseFirestore.instance
+          .collection('jobs')
+          .doc(widget.jobId)
+          .update({
         'applicants': FieldValue.arrayUnion([user.uid])
       });
 
-      // Save full application with CV URL
+      // Create application record
       await FirebaseFirestore.instance.collection('applications').add({
-        'jobId': jobId,
+        'jobId': widget.jobId,
         'userId': user.uid,
         'cvUrl': cvUrl,
         'appliedAt': Timestamp.now(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Application submitted with your CV!")),
-      );
-
-      Navigator.pop(context);
+      _showSnackBar("Application submitted successfully!");
+      if (mounted) setState(() {});
     } catch (e) {
-      print("Error applying for job: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to apply: $e")),
-      );
+      _showSnackBar("Failed to apply: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isApplying = false);
     }
   }
 
-  Future<void> _viewSubmittedCV(String userId, BuildContext context) async {
+  Future<void> _viewSubmittedCV() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isViewingCV = true);
+
     try {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(userId)
+          .doc(user.uid)
           .get();
 
       final cvUrl = userDoc.data()?['cvUrl'] ?? '';
+      if (cvUrl.isEmpty) {
+        _showSnackBar("No CV found");
+        return;
+      }
 
-      if (cvUrl.isNotEmpty) {
-        final Uri url = Uri.parse(cvUrl);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not launch CV URL.")),
-          );
-        }
+      final uri = Uri.parse(cvUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No CV found.")),
-        );
+        _showSnackBar("Could not open CV");
       }
     } catch (e) {
-      print("Error launching CV: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      _showSnackBar("Error viewing CV: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isViewingCV = false);
     }
   }
 
-  Widget _infoRow(String label, String value) {
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, String content) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              content,
+              style: const TextStyle(fontSize: 15),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("$label: ",
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: Text(value)),
-        ],
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
       ),
     );
   }
@@ -113,82 +151,188 @@ class JobDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Job Details'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Job Details'),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('jobs').doc(jobId).get(),
+        future: FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).get(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Job not found'));
           }
 
           final job = snapshot.data!;
           final user = FirebaseAuth.instance.currentUser;
-          final List<dynamic> applicants = job['applicants'] ?? [];
-          final bool alreadyApplied =
-              user != null && applicants.contains(user.uid);
+          final applicants = List<String>.from(job['applicants'] ?? []);
+          final alreadyApplied = user != null && applicants.contains(user.uid);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(job['title'],
-                    style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                _infoRow("Company", job['company']),
-                _infoRow("Location", job['location']),
-                _infoRow("Type", job['type']),
-                _infoRow("Salary", job['salary']),
-                _infoRow("Experience", job['experience']),
-                _infoRow("Deadline", job['deadline']),
-                const SizedBox(height: 12),
-                const Text("Description:",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(job['description']),
-                const SizedBox(height: 12),
-                const Text("Requirements:",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(job['requirements']),
-                const SizedBox(height: 30),
-                Center(
-                  child: alreadyApplied
-                      ? Column(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: null,
-                        icon: const Icon(Icons.check,
-                            color: Colors.black),
-                        label: const Text(
-                          'Already Applied',
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.black),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[300],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        onPressed: () => _viewSubmittedCV(
-                            user!.uid, context), // safe because user != null
-                        icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text("View Submitted CV"),
-                      ),
-                    ],
-                  )
-                      : ElevatedButton.icon(
-                    onPressed: () {
-                      print("Apply with CV button pressed.");
-                      _applyForJob(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue),
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    label: const Text('Apply with CV',
-                        style: TextStyle(color: Colors.white)),
+                // Job Header
+                Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                )
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['title'],
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          job['company'],
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Chip(
+                              label: Text(job['type']),
+                              backgroundColor: Colors.blue.shade100,
+                            ),
+                            Chip(
+                              label: Text(job['experience']),
+                              backgroundColor: Colors.green.shade100,
+                            ),
+                            Chip(
+                              label: Text(job['salary']),
+                              backgroundColor: Colors.amber.shade100,
+                            ),
+                            Chip(
+                              label: Text(job['location']),
+                              backgroundColor: Colors.purple.shade100,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Deadline
+                _buildInfoCard(
+                  '',
+                  job['deadline'],
+                ),
+
+                // Job Description
+                _buildSectionTitle('Job Description'),
+                _buildInfoCard(
+                  '',
+                  job['description']
+                ),
+
+                // Requirements
+                _buildSectionTitle('Requirements'),
+                _buildInfoCard(
+                  '',
+                  job['requirements'],
+                ),
+
+                // Apply Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: alreadyApplied
+                        ? Column(
+                      children: [
+                        ElevatedButton(
+                          onPressed: null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade200,
+                            minimumSize: const Size(200, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check, color: Colors.green),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Already Applied',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: _isViewingCV ? null : _viewSubmittedCV,
+                          icon: _isViewingCV
+                              ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                              : const Icon(Icons.picture_as_pdf),
+                          label: const Text('View Submitted CV'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(200, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                        : ElevatedButton.icon(
+                      onPressed: _isApplying ? null : _applyForJob,
+                      icon: _isApplying
+                          ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                          : const Icon(Icons.send),
+                      label: Text(
+                        _isApplying ? 'Applying...' : 'Apply with CV',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(200, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           );

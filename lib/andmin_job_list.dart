@@ -15,6 +15,7 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
   String? _errorMessage;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -25,22 +26,247 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
   Future<void> _checkAdminStatus() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        setState(() {
-          _errorMessage = 'Admin not authenticated';
-          _isLoading = false;
-        });
-        return;
-      }
-      setState(() {
-        _isLoading = false;
-      });
+      if (user == null) throw Exception('Admin not authenticated');
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error verifying admin status: ${e.toString()}';
+        _errorMessage = 'Error: ${e.toString()}';
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _refreshData() async {
+    setState(() => _isLoading = true);
+    await _checkAdminStatus();
+  }
+
+  Future<void> _editJob(DocumentSnapshot doc) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminJobPostPage(
+          jobId: doc.id,
+          initialData: doc.data() as Map<String, dynamic>,
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job updated successfully!')),
+      );
+      setState(() {}); // Refresh the UI
+    }
+  }
+
+  Future<void> _confirmDelete(String jobId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete this job?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteJob(jobId);
+    }
+  }
+
+  Future<void> _deleteJob(String jobId) async {
+    try {
+      await _firestore.collection('jobs').doc(jobId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Job deleted successfully')),
+        );
+        _refreshData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Widget _buildJobCard(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _showJobDetails(data),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      data['title'] ?? 'No title',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (value) {
+                      if (value == 'edit') _editJob(doc);
+                      if (value == 'delete') _confirmDelete(doc.id);
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 20),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                data['company'] ?? 'No company',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  Chip(
+                    label: Text(data['type'] ?? 'No type'),
+                    backgroundColor: Colors.blue[50],
+                  ),
+                  Chip(
+                    label: Text(data['experience'] ?? 'No experience'),
+                    backgroundColor: Colors.green[50],
+                  ),
+                  Chip(
+                    label: Text(data['salary'] ?? 'No salary'),
+                    backgroundColor: Colors.orange[50],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16),
+                  const SizedBox(width: 4),
+                  Text(data['location'] ?? 'No location'),
+                  const Spacer(),
+                  const Icon(Icons.calendar_today, size: 16),
+                  const SizedBox(width: 4),
+                  Text(data['deadline'] ?? 'No deadline'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showJobDetails(Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              data['title'] ?? 'No title',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              data['company'] ?? 'No company',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const Divider(height: 24),
+            _buildDetailItem('Location', data['location']),
+            _buildDetailItem('Job Type', data['type']),
+            _buildDetailItem('Experience', data['experience']),
+            _buildDetailItem('Salary', data['salary']),
+            _buildDetailItem('Deadline', data['deadline']),
+            const SizedBox(height: 16),
+            const Text('Description:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(data['description'] ?? 'No description provided'),
+            const SizedBox(height: 16),
+            const Text('Requirements:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(data['requirements'] ?? 'No requirements provided'),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(value ?? 'Not specified')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -72,18 +298,21 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Job Posts'),
-        centerTitle: true,
+        title: const Text('Manage Job Posts'),centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AdminJobPostPage(initialData: {}, jobId: ''),
+                  builder: (context) => const AdminJobPostPage(
+                    initialData: {},
+                    jobId: '',
+                  ),
                 ),
               );
+              if (result != null && mounted) _refreshData();
             },
           ),
         ],
@@ -92,159 +321,27 @@ class _AdminJobListPageState extends State<AdminJobListPage> {
         stream: _firestore
             .collection('jobs')
             .where('adminId', isEqualTo: _auth.currentUser?.uid)
-            .orderBy('createdAt') // To avoid index error, orderBy field must be indexed in Firebase
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
             return const Center(child: Text('No job posts found'));
           }
 
           return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              return Card(
-                margin: const EdgeInsets.all(8),
-                elevation: 2,
-                child: ListTile(
-                  title: Text(data['title'] ?? 'No title', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(data['company'] ?? 'No company'),
-                      const SizedBox(height: 4),
-                      Text('${data['type']} • ${data['location']}', style: const TextStyle(fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text('Deadline: ${data['deadline']}', style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AdminJobPostPage(
-                              jobId: doc.id,
-                              initialData: data,
-                            ),
-                          ),
-                        );
-                      } else if (value == 'delete') {
-                        _confirmDelete(doc.id);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                    ],
-                  ),
-                  onTap: () => _showJobDetails(context, data),
-                ),
-              );
-            },
+            itemCount: docs.length,
+            itemBuilder: (context, index) => _buildJobCard(docs[index]),
           );
         },
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(String jobId) async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: const Text('Are you sure you want to delete this job post?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _deleteJobPost(jobId);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteJobPost(String jobId) async {
-    try {
-      await _firestore.collection('jobs').doc(jobId).delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job post deleted')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-      }
-    }
-  }
-
-  void _showJobDetails(BuildContext context, Map<String, dynamic> data) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(data['title'] ?? 'No title', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(data['company'] ?? 'No company', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            const Divider(),
-            _buildDetailRow('Location', data['location']),
-            _buildDetailRow('Job Type', data['type']),
-            _buildDetailRow('Experience', data['experience']),
-            _buildDetailRow('Salary', data['salary']),
-            _buildDetailRow('Deadline', data['deadline']),
-            const SizedBox(height: 16),
-            const Text('Job Description:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(data['description'] ?? 'No description provided'),
-            const SizedBox(height: 16),
-            const Text('Requirements:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(data['requirements'] ?? 'No requirements provided'),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 100, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(child: Text(value ?? 'Not specified')),
-        ],
       ),
     );
   }

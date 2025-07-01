@@ -54,6 +54,14 @@ dependencies:
   share_plus: ^7.0.0
   pdf: ^3.10.4
   printing: ^5.12.0
+  syncfusion_flutter_pdfviewer: ^30.1.37
+  permission_handler: ^12.0.0+1
+  dio: ^5.8.0+1
+  firebase_app_check: ^0.3.2+7
+  open_file: ^3.5.10
+  path: ^1.9.1
+
+
 
 
 
