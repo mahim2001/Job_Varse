@@ -58,8 +58,14 @@ dependencies:
   permission_handler: ^12.0.0+1
   dio: ^5.8.0+1
   firebase_app_check: ^0.3.2+7
-  open_file: ^3.5.10
   path: ^1.9.1
+  connectivity_plus: ^6.1.4
+  open_filex: ^4.7.0
+  pdfx: ^2.9.2
+  typed_data: ^1.4.0
+  http: ^1.4.0
+
+
 
 
 

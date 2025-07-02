@@ -41,7 +41,7 @@ class AdminJobBoardPage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => AdminViewApplicantsPage(jobId: job.id),
+                          builder: (_) => AdminApplicantManagementPage(jobId: job.id),
                         ),
                       );
                     },

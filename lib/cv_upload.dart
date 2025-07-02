@@ -1,208 +1,384 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_file/open_file.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:dio/dio.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 
-class UploadCVPage extends StatefulWidget {
-  const UploadCVPage({super.key});
+class CvUploadPage extends StatefulWidget {
+  const CvUploadPage({super.key});
 
   @override
-  State<UploadCVPage> createState() => _UploadCVPageState();
+  State<CvUploadPage> createState() => _CvUploadPageState();
 }
 
-class _UploadCVPageState extends State<UploadCVPage> {
-  String? uploadStatus;
-  bool isUploading = false;
-  double? uploadProgress;
-  PlatformFile? selectedFile;
-  UploadTask? _uploadTask;
+class _CvUploadPageState extends State<CvUploadPage> {
   final user = FirebaseAuth.instance.currentUser!;
-  final cvCollection = FirebaseFirestore.instance.collection('users');
+  late CollectionReference cvCollection;
+  bool _isUploading = false;
+  double _uploadProgress = 0;
 
   @override
-  void dispose() {
-    _uploadTask?.cancel();
-    super.dispose();
+  void initState() {
+    super.initState();
+    cvCollection = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('cvs');
   }
 
-  Future<void> uploadCV() async {
-    try {
-      setState(() {
-        uploadStatus = null;
-        isUploading = true;
-        uploadProgress = 0;
-      });
+  Future<void> _uploadFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowMultiple: false,
+    );
 
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx'],
-        withData: true,
+    if (result == null || result.files.isEmpty) return;
+
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0;
+    });
+
+    final file = File(result.files.first.path!);
+    final fileName = path.basename(file.path);
+    final fileExt = path.extension(file.path).toLowerCase().replaceAll('.', '');
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('cv_files/${user.uid}/$fileName');
+
+    try {
+      final uploadTask = storageRef.putFile(
+        file,
+        SettableMetadata(contentType: 'application/$fileExt'),
       );
 
-      if (result == null || result.files.isEmpty) {
+      uploadTask.snapshotEvents.listen((taskSnapshot) {
         setState(() {
-          uploadStatus = "No file selected";
-          isUploading = false;
-        });
-        return;
-      }
-
-      final file = result.files.first;
-      setState(() => selectedFile = file);
-
-      if (file.size > 5 * 1024 * 1024) {
-        setState(() {
-          uploadStatus = "File too large (max 5MB)";
-          isUploading = false;
-        });
-        return;
-      }
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileExt = file.extension ?? 'pdf';
-      final fileName = 'cv_${user.uid}_$timestamp.$fileExt';
-      final storageRef = FirebaseStorage.instance.ref().child('cvs/$fileName');
-
-      _uploadTask = storageRef.putData(file.bytes!, SettableMetadata(
-        contentType: 'application/$fileExt',
-        customMetadata: {'uploadedBy': user.uid},
-      ));
-
-      _uploadTask!.snapshotEvents.listen((taskSnapshot) {
-        setState(() {
-          uploadProgress = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
+          _uploadProgress = taskSnapshot.bytesTransferred.toDouble() /
+              taskSnapshot.totalBytes.toDouble();
         });
       });
 
-      final taskSnapshot = await _uploadTask!;
+      final taskSnapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await taskSnapshot.ref.getDownloadURL();
 
-      if (downloadUrl.isNotEmpty) {
-        await cvCollection.doc(user.uid).collection('cvs').add({
-          'url': downloadUrl,
-          'name': file.name,
-          'size': file.size,
-          'uploadedAt': Timestamp.now(),
-          'storagePath': storageRef.fullPath,
-          'fileType': fileExt,
-        });
+      await cvCollection.add({
+        'url': downloadUrl,
+        'name': fileName,
+        'size': result.files.first.size,
+        'uploadedAt': Timestamp.now(),
+        'storagePath': storageRef.fullPath,
+        'fileType': fileExt,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("CV uploaded successfully!"),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-
-
-      setState(() {
-        uploadStatus = "Upload successful!";
-        isUploading = false;
-        selectedFile = null;
-        uploadProgress = null;
-      });
     } catch (e) {
-      setState(() {
-        uploadStatus = "Error: ${e.toString()}";
-        isUploading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Upload failed: ${e.toString()}"),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
-  Future<void> deleteCV(String docId, String storagePath) async {
-    await FirebaseStorage.instance.ref(storagePath).delete();
-    await cvCollection.doc(user.uid).collection('cvs').doc(docId).delete();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("CV deleted")));
+  Future<void> _deleteFile(String docId, String storagePath) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete CV"),
+        content: const Text("Are you sure you want to delete this CV file?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await FirebaseStorage.instance.ref(storagePath).delete();
+      await cvCollection.doc(docId).delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("CV deleted successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Deletion failed: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void openCV(String url) {
-    OpenFile.open(url); // Requires internet or PDF viewer on device
+  Future<void> _downloadAndOpenFile(String url, String fileName) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/$fileName';
+      final file = File(filePath);
+
+      if (!file.existsSync()) {
+        await Dio().download(url, filePath);
+      }
+
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        throw Exception("Unable to open file");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to open file: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildFileIcon(String fileType) {
+    switch (fileType) {
+      case 'pdf':
+        return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
+      case 'doc':
+      case 'docx':
+        return const Icon(Icons.description, color: Colors.blue, size: 40);
+      default:
+        return const Icon(Icons.insert_drive_file, size: 40);
+    }
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1048576) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / 1048576).toStringAsFixed(1)} MB';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppBar(title: const Text("Manage CV")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(Icons.upload_file, size: 60, color: theme.colorScheme.primary),
-            const SizedBox(height: 8),
-            Text("Upload Your Resume", style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text("Allowed: PDF, DOC, DOCX (Max: 5MB)", style: theme.textTheme.bodySmall),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: Icon(Icons.upload),
-              label: Text(isUploading ? "Uploading..." : "Select & Upload CV"),
-              onPressed: isUploading ? null : uploadCV,
-            ),
-            if (uploadProgress != null)
-              Column(
-                children: [
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(value: uploadProgress),
-                  const SizedBox(height: 10),
-                  Text("Uploading ${(uploadProgress! * 100).toStringAsFixed(0)}%"),
-                ],
+      appBar: AppBar(
+        title: const Text("My CV Portfolio"),
+        centerTitle: true,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Upload Guidelines"),
+                  content: const Text(
+                    "• Supported formats: PDF, DOC, DOCX\n"
+                        "• Maximum file size: 5MB\n"
+                        "• Name your files clearly (e.g., 'JohnDoe_CV_2023.pdf')",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Got it"),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isUploading ? null : _uploadFile,
+        icon: const Icon(Icons.upload),
+        label: const Text("Upload CV"),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+      body: Column(
+        children: [
+          if (_isUploading)
+            LinearProgressIndicator(
+              value: _uploadProgress,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).primaryColor,
               ),
-            if (uploadStatus != null) ...[
-              const SizedBox(height: 10),
-              Text(uploadStatus!, style: TextStyle(
-                color: uploadStatus!.contains("success") ? Colors.green : Colors.red,
-              )),
-            ],
-            const Divider(height: 40),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Your Uploaded CVs", style: theme.textTheme.titleMedium),
+              minHeight: 4,
             ),
-            const SizedBox(height: 10),
-            StreamBuilder<QuerySnapshot>(
-              stream: cvCollection.doc(user.uid).collection('cvs')
-                  .orderBy('uploadedAt', descending: true)
-                  .snapshots(),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: cvCollection.orderBy('uploadedAt', descending: true).snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return CircularProgressIndicator();
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Error loading CVs",
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text("Try again"),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 final docs = snapshot.data!.docs;
 
-                if (docs.isEmpty) return Text("No CV uploaded yet.");
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.cloud_upload,
+                          size: 80,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No CVs uploaded yet",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Tap the + button to upload your first CV",
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 return ListView.separated(
-                  physics: NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const Divider(),
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
+                    final uploadedAt = (data['uploadedAt'] as Timestamp).toDate();
 
-                    return ListTile(
-                      leading: Icon(Icons.insert_drive_file),
-                      title: Text(data['name']),
-                      subtitle: Text("Size: ${(data['size'] / 1024).toStringAsFixed(1)} KB"),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.remove_red_eye, color: Colors.blue),
-                            onPressed: data['url'] != null
-                                ? () => openCV(data['url'])
-                                : null,
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _downloadAndOpenFile(data['url'], data['name']),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              _buildFileIcon(data['fileType']),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data['name'],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "${data['fileType'].toUpperCase()} • ${_formatFileSize(data['size'])}",
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Uploaded ${DateFormat('MMM d, yyyy').format(uploadedAt)}",
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                color: Colors.red,
+                                onPressed: () => _deleteFile(doc.id, data['storagePath']),
+                              ),
+                            ],
                           ),
-
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => deleteCV(doc.id, data['storagePath']),
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },
                 );
               },
-            )
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
