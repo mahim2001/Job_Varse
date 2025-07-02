@@ -64,6 +64,7 @@ dependencies:
   pdfx: ^2.9.2
   typed_data: ^1.4.0
   http: ^1.4.0
+  flutter_launcher_icons: ^0.14.4
 
 
 
@@ -85,7 +86,9 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/images/jobvarsebd.png"
 # The following section is specific to Flutter packages.
 flutter:
 
